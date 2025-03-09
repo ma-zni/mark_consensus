@@ -11,6 +11,9 @@ from flare_ai_consensus.consensus.aggregator import centralized_llm_aggregator
 from flare_ai_consensus.settings import AggregatorConfig, ModelConfig
 from flare_ai_consensus.router import OpenRouterProvider
 
+import random
+from itertools import permutations
+
 # -----------------------------
 # Configuration
 # -----------------------------
@@ -107,29 +110,35 @@ def main():
 
                 aggregator_balance_after = web3.eth.get_balance(AGGREGATOR_ADDRESS)
                 actual_withdrawn_amount = aggregator_balance_after - aggregator_balance_before
-
+                shap_values_dict = shap_values(verifier_results_map)
+                print("SHAP VALUES: ",shap_values_dict)
+                address2reward = {}
+                sum_of_shap_values = sum(shap_values_dict.values())
+                for verifier in on_chain_verifiers:
+                    address2reward[verifier] = actual_withdrawn_amount * shap_values_dict[verifier] / sum_of_shap_values
 
                 if actual_withdrawn_amount <= 0:
                     print("    No new fees were withdrawn (or negative?). Aborting distribution.")
                     continue
 
-                share_per_verifier_wei = actual_withdrawn_amount // verifier_count  # integer division
+                
 
                 # B. Send each verifier their share
                 for v in on_chain_verifiers:
                     # Build a transaction to send FLR from aggregator to the verifier
+                    
                     tx = {
                         "chainId": 114,  # EIP-155 chain ID for Coston2
                         "from": AGGREGATOR_ADDRESS,
                         "to": v,
-                        "value": share_per_verifier_wei,  # portion for each verifier
+                        "value": int(address2reward[v]),  # portion for each verifier
                         "nonce": web3.eth.get_transaction_count(AGGREGATOR_ADDRESS),
                         "gas": 21000,  # For a simple FLR transfer
                         "gasPrice": web3.to_wei("30", "gwei"),  # Example 30 gwei
                     }
                     signed_tx = aggregator_acct.sign_transaction(tx)
                     send_tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-                    print(f"        Sending {share_per_verifier_wei} wei to {v}. Tx: {send_tx_hash.hex()}")
+                    print(f"        Sending {int(address2reward[v])} wei to {v}. Tx: {send_tx_hash.hex()}")
                     receipt = web3.eth.wait_for_transaction_receipt(send_tx_hash)
                     if receipt.status != 1:
                         print("Distribution transaction failed!")
@@ -345,7 +354,7 @@ def submit_aggregate_result(
         "chainId": 114,  # EIP-155 chain ID for Coston2
         "from": aggregator_acct.address,
         "nonce": web3.eth.get_transaction_count(aggregator_acct.address),
-        "gas": 200000,  # adjust as needed
+        "gas": 2000000,  # adjust as needed
         "gasPrice": web3.to_wei("30", "gwei"),
     })
 
@@ -355,6 +364,42 @@ def submit_aggregate_result(
     # 6) Send
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
     return tx_hash
+
+
+
+def shap_values(verifier_results_map):
+    """
+    EXACT Shapley contributions for aggregator_score_from_llm when there are exactly 3 verifiers.
+    We enumerate all 3! = 6 permutations, so no random sampling is needed.
+    """
+    verifier_addresses = list(verifier_results_map.keys())
+    if len(verifier_addresses) != 3:
+        raise ValueError("This function is designed for exactly 3 verifiers.")
+
+    # Initialize total contributions
+    shap_contributions = {v: 0.0 for v in verifier_addresses}
+
+    # Enumerate all permutations of the 3 verifiers
+    all_permutations = list(permutations(verifier_addresses))
+
+    # For each ordering, add verifiers one by one and measure marginal contribution
+    for ordering in all_permutations:
+        current_coalition = {}
+        current_score = aggregator_score_from_llm(current_coalition)
+
+        for verifier in ordering:
+            prev_score = current_score
+            current_coalition[verifier] = verifier_results_map[verifier]
+            current_score = aggregator_score_from_llm(current_coalition)
+            marginal_contribution = current_score - prev_score
+            shap_contributions[verifier] += marginal_contribution
+
+    # Average the contributions across the 6 permutations
+    n_perm = float(len(all_permutations))  # should be 6 for p=3
+    for v in verifier_addresses:
+        shap_contributions[v] /= n_perm
+
+    return shap_contributions
 
 
 if __name__ == "__main__":

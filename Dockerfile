@@ -16,6 +16,9 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 # Set the working directory in the final container
 WORKDIR /app
 
+# Set the Python path
+ENV PYTHONPATH=/app/src:/app/src/flare_ai_consensus
+
 # Copy only necessary files from the build stage
 COPY --from=backend-builder /mark_consensus/.venv ./.venv
 COPY --from=backend-builder /mark_consensus/src ./src

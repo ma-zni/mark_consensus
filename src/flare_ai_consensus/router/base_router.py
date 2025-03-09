@@ -19,6 +19,10 @@ class ChatRequest(TypedDict):
     max_tokens: int
     temperature: float
 
+class EmbeddingRequest(TypedDict):
+    model: str
+    prompt: str
+    max_tokens: int
 
 class BaseRouter:
     """A base class to handle HTTP requests and common logic for API interaction."""

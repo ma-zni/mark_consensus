@@ -1,4 +1,4 @@
-from .base_router import ChatRequest, CompletionRequest
+from .base_router import ChatRequest, CompletionRequest, EmbeddingRequest
 from .openrouter import AsyncOpenRouterProvider, OpenRouterProvider
 
 __all__ = [
@@ -6,4 +6,5 @@ __all__ = [
     "ChatRequest",
     "CompletionRequest",
     "OpenRouterProvider",
+    "EmbeddingRequest",
 ]

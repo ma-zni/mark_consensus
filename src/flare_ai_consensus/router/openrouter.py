@@ -3,6 +3,7 @@ from flare_ai_consensus.router.base_router import (
     BaseRouter,
     ChatRequest,
     CompletionRequest,
+    EmbeddingRequest,
 )
 
 
@@ -76,6 +77,16 @@ class OpenRouterProvider(BaseRouter):
         endpoint = "/chat/completions"
         return self._post(endpoint, payload)
 
+    def send_completion_from_embeddings(self, payload: EmbeddingRequest) -> dict:
+        """
+        Get a completion from a list of embeddings.
+
+        The embeddings endpoint expects a JSON payload with a key "embeddings"
+        containing a list of embeddings.
+        """
+        endpoint = "/completions"
+        return self._post(endpoint, payload)
+
 
 class AsyncOpenRouterProvider(AsyncBaseRouter):
     """Asynchronous provider to interact with the OpenRouter API."""
@@ -109,4 +120,14 @@ class AsyncOpenRouterProvider(AsyncBaseRouter):
         :return: The JSON response from the API.
         """
         endpoint = "/chat/completions"
+        return await self._post(endpoint, payload)
+
+    async def send_completion_from_embeddings(self, payload: EmbeddingRequest) -> dict:
+        """
+        Get a completion from a list of embeddings.
+
+        The embeddings endpoint expects a JSON payload with a key "embeddings"
+        containing a list of embeddings.
+        """
+        endpoint = "/completions"
         return await self._post(endpoint, payload)

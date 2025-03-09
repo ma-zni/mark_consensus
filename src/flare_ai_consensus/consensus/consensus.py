@@ -6,6 +6,7 @@ from flare_ai_consensus.consensus.aggregator import async_centralized_llm_aggreg
 from flare_ai_consensus.router import AsyncOpenRouterProvider, ChatRequest
 from flare_ai_consensus.settings import ConsensusConfig, Message, ModelConfig
 from flare_ai_consensus.utils import parse_chat_response
+from flare_ai_consensus.nft_monitor import main as nft_monitor_main
 
 logger = structlog.get_logger(__name__)
 
@@ -156,3 +157,7 @@ async def send_round(
     ]
     results = await asyncio.gather(*tasks)
     return dict(results)
+
+
+if __name__ == "__main__":
+    nft_monitor_main()
